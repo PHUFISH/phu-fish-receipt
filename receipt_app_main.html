@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>PHU FISH — ใบเสร็จพร้อม QR พร้อมเพย์</title>
+  <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+  <meta name="theme-color" content="#0b0b0c">
+  <link rel="manifest" id="dynamic-manifest" href="#">
+  <style>
+    :root{
+      --bg:#0b0b0c; --panel:#121214; --key:#1c1c1e; --key-accent:#2d7cff; --key-text:#f2f2f3; --muted:#a9abb2; --ok:#00c853;
+      --safe-top: env(safe-area-inset-top); --safe-bottom: env(safe-area-inset-bottom);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%;background:var(--bg);color:#fff;font-family:-apple-system,BlinkMacSystemFont,"Noto Sans Thai",Roboto,Arial}
+    body{margin:0;display:flex;flex-direction:column}
+
+    .wrap{max-width:420px;margin:0 auto;width:100%;display:flex;flex-direction:column;min-height:100svh;min-height:100dvh;padding-bottom:calc(var(--safe-bottom) + 8px)}
+
+    header{padding:calc(var(--safe-top) + 8px) 16px 8px;position:sticky;top:0;background:linear-gradient(180deg, rgba(11,11,12,0.96), rgba(11,11,12,0.8) 60%, rgba(11,11,12,0));backdrop-filter:saturate(140%) blur(8px);z-index:5}
+    .brand{display:flex;justify-content:space-between;align-items:center}
+    .brand h1{font-size:18px;margin:0;font-weight:700;letter-spacing:0.2px}
+    .brand .pp{font-size:12px;color:var(--muted)}
+
+    .equation{margin-top:8px;padding:10px 12px;border-radius:12px;background:var(--panel);min-height:44px;display:flex;align-items:center;line-height:1.35}
+    .equation span{color:#fff;opacity:0.92;word-break:break-word}
+
+    .ship{display:flex;align-items:center;gap:10px;margin:10px 0 0}
+    .chip{background:var(--panel);border-radius:999px;padding:8px 10px;display:flex;align-items:center;gap:8px}
+    .chip input[type="number"]{width:80px;background:transparent;color:#fff;border:none;outline:none;font-size:14px}
+    .toggle{position:relative;width:46px;height:26px;background:#3a3a3d;border-radius:999px;cursor:pointer;transition:0.2s}
+    .toggle input{display:none}
+    .toggle i{position:absolute;top:3px;left:3px;width:20px;height:20px;background:#fff;border-radius:50%;transition:0.2s}
+    .toggle.on{background:#34c759}
+    .toggle.on i{left:23px}
+
+    main{padding:10px 10px 16px;display:flex;flex-direction:column;gap:12px}
+    .display{padding:14px 16px;border-radius:14px;background:var(--panel);min-height:64px;display:flex;justify-content:flex-end;align-items:center;font-size:32px;font-weight:700;letter-spacing:1px}
+
+    /* คีย์แพด—ลดขนาดลง ~20% */
+    .keypad{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px}
+    .btn{position:relative;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:manipulation;height:52px;border-radius:26px;background:var(--key);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:700;color:var(--key-text);box-shadow:0 6px 14px rgba(0,0,0,0.25), inset 0 -1px 0 rgba(255,255,255,0.06);transition:transform .06s ease, filter .06s ease}
+    .btn:active{transform:scale(0.98);filter:brightness(0.96)}
+    .btn.secondary{background:#232326;color:#d7d7db}
+    .btn.accent{background:var(--key-accent)}
+    .btn.ok{background:var(--ok)}
+    .btn.wide{grid-column:span 2}
+
+    /* เอฟเฟกต์ไฟ/แสงโกลว์ตอนกด */
+    .btn.flash::after{content:"";position:absolute;inset:-2px;border-radius:inherit;background:radial-gradient(circle at var(--x,50%) var(--y,50%), rgba(255,255,255,.35), rgba(255,255,255,0) 55%);filter:saturate(140%);animation:keyflash .18s ease-out forwards}
+    @keyframes keyflash{from{opacity:.85}to{opacity:0}}
+
+    .receipt-view{display:none;flex-direction:column;gap:12px;padding:14px}
+    .card{background:var(--panel);border-radius:16px;padding:12px}
+    .row{display:flex;justify-content:space-between;align-items:baseline;margin:4px 0}
+    .muted{color:var(--muted)}
+
+    .actions{display:flex;gap:10px;position:sticky;bottom:0;background:linear-gradient(0deg, rgba(11,11,12,0.96), rgba(11,11,12,0.0));padding:6px 0 calc(10px + var(--safe-bottom))}
+    .actions .btn{height:48px;border-radius:14px;font-size:15px}
+
+    .preview{width:100%;display:flex;justify-content:center}
+    .preview canvas{width:100%;max-width:420px;border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+
+    footer{padding:12px 16px calc(24px + var(--safe-bottom));color:var(--muted);font-size:12px;text-align:center}
+
+    /* Overlay แสดงรูปแบบเต็มจอ เพื่อกดค้างบันทึก */
+    .overlay{position:fixed;inset:0;background:rgba(0,0,0,.72);backdrop-filter:blur(6px);display:none;align-items:center;justify-content:center;z-index:50;padding:16px}
+    .overlay .sheet{background:#111;border-radius:16px;max-width:420px;width:100%;padding:12px}
+    .overlay .sheet header{position:static;background:none;padding:0 0 8px}
+    .overlay .sheet img{width:100%;border-radius:12px}
+    .overlay .hint{font-size:14px;color:#c9cad1;margin-top:8px}
+    .overlay .rowbtn{display:flex;gap:10px;margin-top:10px}
+
+    /* กล่องกรอกชื่อลูกค้า (ต้องกรอกก่อนเริ่มคีย์ยอด) */
+    .customer-wrap{padding:14px 16px 14px}
+    .customer-box{display:flex;flex-direction:column;gap:12px;background:var(--panel);border-radius:14px;padding:16px}
+    .customer-box label{font-size:14px;color:#cfd1d6}
+    .customer-box input{border:none;outline:none;background:#1b1b1d;color:#fff;border-radius:12px;height:52px;padding:10px 14px;font-size:18px;line-height:1.2;text-align:center;width:100%;margin:6px 0 8px;letter-spacing:.2px}
+    .next-btn{height:48px;border-radius:12px;background:var(--key-accent);color:#fff;font-weight:700;border:none}
+    .next-btn:active{transform:scale(0.99)}
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <h1>PHU FISH</h1>
+      <div class="pp">PromptPay: <strong>0823570646</strong></div>
+    </div>
+
+    <!-- ขั้นตอน 1: กรอกชื่อลูกค้า ก่อนคำนวณ -->
+    <div id="customerStep" class="customer-wrap">
+      <div class="customer-box">
+        <label for="customerName">กรอกชื่อลูกค้า (ต้องกรอกก่อนเริ่มคิดเงิน)</label>
+        <input id="customerName" type="text" inputmode="text" placeholder="ชื่อลูกค้า" />
+        <button id="toCalc" class="next-btn">เริ่มคำนวณ</button>
+      </div>
+    </div>
+
+    <!-- เฮดเดอร์ของโหมดคำนวณ (แสดงหลังกรอกชื่อแล้ว) -->
+    <div id="calcHeader" style="display:none;">
+      <div class="equation"><span id="eq">—</span></div>
+      <div class="ship">
+        <label class="toggle on" id="shipToggle"><input type="checkbox" checked><i></i></label>
+        <div class="chip">
+          <span class="muted">ค่าส่ง</span>
+          <input id="shipFee" type="number" inputmode="decimal" min="0" value="80"> <span class="muted">บาท</span>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- โหมดคีย์แพด (ซ่อนจนกว่าจะกรอกชื่อ) -->
+  <main id="padView" style="display:none;">
+    <div class="display" id="display">0</div>
+    <div class="keypad" aria-label="แป้นพิมพ์เครื่องคิดเลข">
+      <div class="btn secondary" data-key="C">C</div>
+      <div class="btn secondary" data-key="DEL">⌫</div>
+      <div class="btn secondary" data-key=".">.</div>
+      <div class="btn accent" data-key="+">＋</div>
+
+      <div class="btn" data-key="7">7</div>
+      <div class="btn" data-key="8">8</div>
+      <div class="btn" data-key="9">9</div>
+      <div class="btn" disabled style="opacity:.35;filter:grayscale(1)">—</div>
+
+      <div class="btn" data-key="4">4</div>
+      <div class="btn" data-key="5">5</div>
+      <div class="btn" data-key="6">6</div>
+      <div class="btn" disabled style="opacity:.35;filter:grayscale(1)">/</div>
+
+      <div class="btn" data-key="1">1</div>
+      <div class="btn" data-key="2">2</div>
+      <div class="btn" data-key="3">3</div>
+      <div class="btn" disabled style="opacity:.35;filter:grayscale(1)">×</div>
+
+      <div class="btn wide" data-key="0">0</div>
+      <div class="btn accent" data-key="+">＋</div>
+      <div class="btn ok" data-key="OK">OK</div>
+    </div>
+  </main>
+
+  <section id="receiptView" class="receipt-view">
+    <div class="card">
+      <div class="row"><div>พรีวิวใบเสร็จ (อัตราส่วน 3:4)</div><div class="muted" id="sumText">—</div></div>
+      <div class="preview"><canvas id="receiptCanvas" width="900" height="1200"></canvas></div>
+    </div>
+    <div class="actions">
+      <div class="btn secondary" id="backBtn">ย้อนกลับ</div>
+      <div class="btn accent" id="shareBtn">บันทึก/แชร์ JPG</div>
+      <div class="btn secondary" id="newOrderBtn">ทำรายการใหม่</div>
+    </div>
+  </section>
+
+  <footer>ทำง่ายๆ แต่ “ออกมาดี” — รองรับ iPhone 13 ใช้งานมือเดียวสบายๆ</footer>
+</div>
+
+<!-- Overlay สำหรับบันทึกแบบกดค้าง (คงไว้ เผื่อใช้ในอนาคต) -->
+<div class="overlay" id="saveOverlay" role="dialog" aria-modal="true" hidden>
+  <div class="sheet">
+    <header>
+      <div class="brand" style="padding:0 0 6px;">
+        <h1>บันทึกรูปใบเสร็จ</h1>
+        <div class="pp">JPG 3:4</div>
+      </div>
+    </header>
+    <img id="overlayImg" alt="Receipt Preview" />
+    <div class="hint">บน iPhone: แตะค้างที่รูป > <strong>Add to Photos</strong> หรือ <strong>Save Image</strong></div>
+    <div class="rowbtn">
+      <div class="btn secondary" id="closeOverlay">ปิด</div>
+      <div class="btn accent" id="forceShare">เปิด Share Sheet</div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/gh/diewland/promptpay-qr-js/qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/gh/diewland/promptpay-qr-js/promptpay-qr.js"></script>
+<script>
+(function(){
+  // ====== สถานะหลัก ======
+  const state = {
+    entries: [],       // รายการราคาที่กดบวกไว้
+    current: '',       // ตัวเลขที่กำลังพิมพ์
+    shipOn: true,
+    shipFee: 80,
+    customerName: '',
+    merchant: {
+      name: 'PHU FISH',
+      accountName: 'ภูริพัฒน์  มูหะหมัดตอเฮ็ด',
+      promptpay: '0823570646'
+    }
+  };
+
+  // อ้างอิง DOM หลัก
+  const customerStep = document.getElementById('customerStep');
+  const nameInput     = document.getElementById('customerName');
+  const toCalcBtn     = document.getElementById('toCalc');
+  const calcHeader    = document.getElementById('calcHeader');
+  const padView       = document.getElementById('padView');
+  const receiptView   = document.getElementById('receiptView');
+  const displayEl     = document.getElementById('display');
+  const eqEl          = document.getElementById('eq');
+  const shipToggle    = document.getElementById('shipToggle');
+  const shipFeeInput  = document.getElementById('shipFee');
+  const sumText       = document.getElementById('sumText');
+  const canvas        = document.getElementById('receiptCanvas');
+  const ctx           = canvas.getContext('2d');
+
+  const overlay       = document.getElementById('saveOverlay');
+  const overlayImg    = document.getElementById('overlayImg');
+  const closeOverlay  = document.getElementById('closeOverlay');
+  const forceShareBtn = document.getElementById('forceShare');
+  const newOrderBtn   = document.getElementById('newOrderBtn');
+  const shareBtn      = document.getElementById('shareBtn');
+
+  // ====== ฟังก์ชันช่วย ======
+  const vibrate = (d=8)=>{ if(navigator.vibrate){ try{ navigator.vibrate(d) }catch(e){} } };
+  const formatMoney = (n)=>{ const num=Number(n); return (Number.isInteger(num)? num.toString(): num.toFixed(2)).replace(/\B(?=(\d{3})+(?!\d))/g, ','); };
+  const updateDisplay = ()=>{ displayEl.textContent = state.current === ''? '0' : state.current; };
+  const updateEquation = ()=>{ const parts=state.entries.map(v=>formatMoney(v)); eqEl.textContent = parts.length? parts.join(' + '): '—'; };
+  const pushCurrent = ()=>{ if(state.current===''||state.current==='.') return; const val=parseFloat(state.current); if(!isFinite(val)) return; state.entries.push(val); state.current=''; updateDisplay(); updateEquation(); };
+  const subtotal = ()=> state.entries.reduce((a,b)=>a+b,0);
+
+  // สีสุภาพแบบสุ่มจากชื่อ (อ่อน หม่น)
+  function mutedColorFromName(name){
+    if(!name) return '#f2f3f5';
+    let h=0; for(let i=0;i<name.length;i++){ h=(h*31 + name.charCodeAt(i)) % 360; }
+    const s = 20 + (h % 9);   // 20–28%
+    const l = 82 + (h % 7);   // 82–88%
+    return `hsl(${h} ${s}% ${l}%)`;
+  }
+  const getDisplayName = (name)=> (name||'').trim();
+
+  // ====== ขั้นตอนกรอกชื่อก่อนเริ่ม ======
+  nameInput.addEventListener('input', ()=>{ state.customerName = nameInput.value.trim(); });
+  toCalcBtn.addEventListener('click', ()=>{
+    if(!state.customerName){ alert('กรุณากรอกชื่อลูกค้า'); nameInput.focus(); return; }
+    customerStep.style.display='none';
+    calcHeader.style.display='block';
+    padView.style.display='flex';
+  });
+
+  // ====== จัดการปุ่มกดคีย์แพด + เอฟเฟกต์แสง ======
+  function keyPress(k, el, evt){
+    vibrate(10);
+    if(el && evt){
+      const rect = el.getBoundingClientRect();
+      const cx = (evt.touches?.[0]?.clientX ?? evt.clientX) - rect.left;
+      const cy = (evt.touches?.[0]?.clientY ?? evt.clientY) - rect.top;
+      el.style.setProperty('--x', cx + 'px');
+      el.style.setProperty('--y', cy + 'px');
+      el.classList.add('flash');
+      setTimeout(()=> el.classList.remove('flash'), 180);
+    }
+
+    if(/^[0-9]$/.test(k)){
+      if(state.current.length>11) return;
+      if(state.current==='0') state.current='';
+      state.current += k; updateDisplay();
+    }else if(k=== '.'){
+      if(!state.current.includes('.')){ state.current=(state.current||'0')+'.'; updateDisplay(); }
+    }else if(k==='C'){
+      state.current=''; state.entries=[]; updateDisplay(); updateEquation();
+    }else if(k==='DEL'){
+      if(state.current){ state.current = state.current.slice(0,-1); updateDisplay(); }
+    }else if(k==='+'){
+      pushCurrent();
+    }else if(k==='OK'){
+      if(!state.customerName){ alert('กรุณากรอกชื่อลูกค้าก่อน'); return; }
+      pushCurrent(); if(state.entries.length===0){return}
+      renderReceipt(); padView.style.display='none'; receiptView.style.display='flex'; window.scrollTo({top:0,behavior:'smooth'});
+    }
+  }
+  const PRESS_GAP_MS = 150; let lastPress = 0; const allowPress = ()=>{ const now = Date.now(); if(now - lastPress < PRESS_GAP_MS) return false; lastPress = now; return true; };
+  document.querySelectorAll('.btn[data-key]').forEach(btn=>{
+    btn.addEventListener('pointerdown', (e)=>{ if(!allowPress()) return; keyPress(btn.dataset.key, btn, e); }, {passive:true});
+  });
+
+  shipToggle.addEventListener('click', ()=>{ shipToggle.classList.toggle('on'); state.shipOn = shipToggle.classList.contains('on'); });
+  shipFeeInput.addEventListener('input', ()=>{ const v=parseFloat(shipFeeInput.value||'0'); state.shipFee = isFinite(v)? v: 0; });
+
+  // ====== เรนเดอร์ใบเสร็จ (3:4) — ชื่ออยู่กลางในแถบสีสุภาพ (ไม่มีคำว่า "ลูกค้า") ======
+  async function renderReceipt(){
+    const W=canvas.width, H=canvas.height; const pad=64; let y=pad;
+    ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle='#f7f7f9'; ctx.fillRect(24,24,W-48,H-48);
+
+    const titleFont='700 40px -apple-system,BlinkMacSystemFont,"Noto Sans Thai",Roboto,Arial';
+    const textFont='400 28px -apple-system,BlinkMacSystemFont,"Noto Sans Thai",Roboto,Arial';
+    const boldFont='700 30px -apple-system,BlinkMacSystemFont,"Noto Sans Thai",Roboto,Arial';
+
+    ctx.fillStyle='#111'; ctx.font=titleFont; ctx.fillText(state.merchant.name, pad, y);
+    ctx.font=textFont; y+=44; ctx.fillText('PromptPay: '+state.merchant.promptpay, pad, y);
+    y+=36; ctx.fillText('ชื่อบัญชี: '+state.merchant.accountName, pad, y);
+
+    // เส้นคั่น
+    y+=20; ctx.fillStyle='#e9e9ef'; ctx.fillRect(pad, y, W-pad*2, 2); y+=24;
+
+    // แถบชื่อ (สุ่มสีสุภาพจากชื่อ) — ไม่มีคำว่า "ลูกค้า"
+    let nameFontSize = 34;
+    const nameBaseFont = '-apple-system,BlinkMacSystemFont,"Noto Sans Thai",Roboto,Arial';
+    const nameText = getDisplayName(state.customerName);
+    const maxTextWidth = W - pad*2 - 40;
+
+    const barW = W - pad*2;
+    const barRadius = 14;
+    const barColor = mutedColorFromName(nameText || 'PHU FISH');
+
+    function setNameFont(px){ ctx.font = `700 ${px}px ${nameBaseFont}`; }
+    setNameFont(nameFontSize);
+    let nameW = ctx.measureText(nameText).width;
+    while(nameW > maxTextWidth && nameFontSize > 22){ nameFontSize -= 2; setNameFont(nameFontSize); nameW = ctx.measureText(nameText).width; }
+
+    const paddingY = 10;
+    const barH = Math.max(56, nameFontSize + paddingY*2);
+    const barX = pad; const barY = y;
+
+    ctx.save();
+    ctx.shadowColor = 'rgba(0,0,0,0.06)'; ctx.shadowBlur = 6; ctx.shadowOffsetY = 2;
+    ctx.fillStyle = barColor; roundRect(ctx, barX, barY, barW, barH, barRadius, true, false);
+    ctx.restore();
+
+    ctx.fillStyle = '#111'; ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText(nameText, W/2, barY + barH/2);
+    ctx.textAlign='left'; ctx.textBaseline='alphabetic';
+
+    // เว้นช่องไฟใต้ชื่อให้โปร่งตา
+    y += barH + 28;
+
+    // สมการรวมค่าปลา
+    ctx.fillStyle='#e9e9ef'; ctx.fillRect(pad, y, W-pad*2, 2); y+=28;
+    const eq=state.entries.map(v=>formatMoney(v)).join(' + ');
+    const sum=subtotal();
+    ctx.font=boldFont; ctx.fillStyle='#111';
+    ctx.fillText(`ค่าปลา:  ${eq} = ${formatMoney(sum)} บาท`, pad, y);
+
+    // สรุปยอด
+    y+=28; ctx.fillStyle='#e9e9ef'; ctx.fillRect(pad, y, W-pad*2, 2); y+=36;
+    const lineH=40; ctx.font=textFont;
+    drawKV('ค่าปลา', formatMoney(sum)+' บาท'); y+=lineH;
+    const delivery = state.shipOn ? Number(state.shipFee||0): 0;
+    drawKV('ค่าส่ง', formatMoney(delivery)+' บาท'); y+=lineH;
+
+    // ยอดสุทธิ (กล่องเน้น)
+    const total = sum + delivery;
+    const totalLabel = 'ยอดสุทธิ (Total)';
+    const totalBoxH = 74; const totalRadius = 14;
+    const totalBg = '#e9f3ff'; const totalBorder = '#bcd9ff';
+    const totalY = y - 8;
+
+    ctx.save();
+    ctx.fillStyle = totalBg; ctx.strokeStyle = totalBorder; ctx.lineWidth = 2;
+    roundRect(ctx, pad, totalY, W - pad*2, totalBoxH, totalRadius, true, true);
+    ctx.restore();
+
+    ctx.fillStyle = '#102a43';
+    ctx.font = '800 36px -apple-system,BlinkMacSystemFont,"Noto Sans Thai",Roboto,Arial';
+    ctx.fillText(totalLabel, pad + 14, totalY + 48);
+
+    ctx.textAlign='right';
+    ctx.font = '900 40px -apple-system,BlinkMacSystemFont,"Noto Sans Thai",Roboto,Arial';
+    ctx.fillText(formatMoney(total)+' บาท', W - pad - 14, totalY + 48);
+    ctx.textAlign='left';
+
+    y += totalBoxH + 8;
+
+    // QR ท้ายใบ
+    y+=16; ctx.fillStyle='#e9e9ef'; ctx.fillRect(pad, y, W-pad*2, 2); y+=24;
+    const amount=total; const payload=PromptPayQR.gen_text(state.merchant.promptpay, amount);
+    const tmp=document.createElement('div'); new QRCode(tmp,{text:payload,width:600,height:600,correctLevel:QRCode.CorrectLevel.M});
+    await new Promise(r=> setTimeout(r, 50));
+    const qrImg=tmp.querySelector('img'); let qrDataURL= qrImg&&qrImg.src ? qrImg.src : tmp.querySelector('canvas').toDataURL('image/png');
+    const qrSize=Math.min(520, W- pad*2); const qrX=(W-qrSize)/2; const qrY=H - pad - qrSize - 80;
+    await drawImageFromURL(qrDataURL, qrX, qrY, qrSize, qrSize);
+    ctx.fillStyle='#333';
+    ctx.textAlign='center';
+    // ชื่อบัญชีใต้คิวอาร์โค้ด (ก่อน)
+    ctx.font='700 28px -apple-system,BlinkMacSystemFont,"Noto Sans Thai",Roboto,Arial';
+    ctx.fillText(state.merchant.accountName, W/2, qrY+qrSize+36);
+    // ข้อความ "สแกนเพื่อชำระด้วยพร้อมเพย์" ถัดลงมา
+    ctx.font='500 22px -apple-system,BlinkMacSystemFont,"Noto Sans Thai",Roboto,Arial';
+    ctx.fillText('สแกนเพื่อชำระด้วยพร้อมเพย์', W/2, qrY+qrSize+36+28);
+    ctx.textAlign='left';
+
+    sumText.textContent=`รวมทั้งหมด: ${formatMoney(total)} บาท`;
+
+    function drawKV(k,v){ ctx.fillStyle='#111'; ctx.font=textFont; ctx.fillText(k, pad, y); ctx.textAlign='right'; ctx.fillText(v, W-pad, y); ctx.textAlign='left'; }
+    function drawImageFromURL(url,x,y,w,h){ return new Promise((res,rej)=>{ const im=new Image(); im.onload=()=>{ ctx.drawImage(im,x,y,w,h); res(); }; im.onerror=rej; im.src=url; }); }
+    function roundRect(c, x, y, w, h, r, fill, stroke){ if (typeof r === 'number') r = {tl:r, tr:r, br:r, bl:r}; c.beginPath(); c.moveTo(x+r.tl, y); c.lineTo(x+w-r.tr, y); c.quadraticCurveTo(x+w, y, x+w, y+r.tr); c.lineTo(x+w, y+h-r.br); c.quadraticCurveTo(x+w, y+h, x+w-r.br, y+h); c.lineTo(x+r.bl, y+h); c.quadraticCurveTo(x, y+h, x, y+h-r.bl); c.lineTo(x, y+r.tl); c.quadraticCurveTo(x, y, x+r.tl, y); c.closePath(); if(fill) c.fill(); if(stroke) c.stroke(); }
+  }
+
+  // ====== ปุ่มย้อนกลับ: กลับมาคีย์แพด ======
+  document.getElementById('backBtn').addEventListener('click', ()=>{
+    receiptView.style.display='none';
+    padView.style.display='flex';
+    window.scrollTo({top:0,behavior:'smooth'});
+  });
+
+  // ====== ปุ่มทำรายการใหม่: กลับสู่หน้าหลัก ======
+  function resetToHome(){
+    // ล้างสถานะการคำนวณ
+    state.entries = [];
+    state.current = '';
+    updateDisplay();
+    updateEquation();
+    // เปิดค่าส่งกลับเป็น ON แต่ไม่ไปยุ่งค่าเลขที่ผู้ใช้ตั้ง
+    shipToggle.classList.add('on');
+    state.shipOn = true;
+    // ซ่อนใบเสร็จ/คีย์แพด กลับไปขั้นกรอกชื่อ
+    receiptView.style.display='none';
+    padView.style.display='none';
+    calcHeader.style.display='none';
+    customerStep.style.display='block';
+    // ล้างชื่อและโฟกัส
+    state.customerName = '';
+    nameInput.value = '';
+    nameInput.focus();
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+  newOrderBtn.addEventListener('click', resetToHome);
+
+  // ====== ชุดทดสอบเบา ๆ (ไม่กระทบการใช้งานจริง) ======
+  function runSelfTests(){
+    try{
+      console.assert(formatMoney(0)==='0','formatMoney: 0');
+      console.assert(formatMoney(12.5)==='12.50','formatMoney: decimals');
+      console.assert(mutedColorFromName('ABC')===mutedColorFromName('ABC'),'mutedColor stable');
+      console.assert(typeof renderReceipt==='function','renderReceipt exists');
+      console.log('[SelfTest] OK');
+    }catch(err){ console.warn('[SelfTest] fail', err); }
+  }
+  runSelfTests();
+
+  // ====== แชร์ / บันทึก JPG ======
+  async function getJPG(){
+    const dataURL = canvas.toDataURL('image/jpeg', 0.95);
+    const blob = await (await fetch(dataURL)).blob();
+    const file = new File([blob], `PHU-FISH-Receipt-${Date.now()}.jpg`, { type: 'image/jpeg' });
+    return { dataURL, blob, file };
+  }
+  async function saveOrShareReceipt(){
+    const { dataURL, file, blob } = await getJPG();
+    if (navigator.canShare && navigator.canShare({ files:[file] })){
+      try{ await navigator.share({ files:[file], title:'PHU FISH — ใบเสร็จ', text:'ใบเสร็จพร้อม QR พร้อมเพย์' }); return; }catch(e){}
+    }
+    // ไม่รองรับ Web Share: เปิด overlay ให้แตะค้างบันทึก
+    overlayImg.src = dataURL;
+    overlay.removeAttribute('hidden');
+    overlay.style.display = 'flex';
+  }
+  if (shareBtn){ shareBtn.addEventListener('click', saveOrShareReceipt); }
+  if (closeOverlay){ closeOverlay.addEventListener('click', ()=>{ overlay.style.display='none'; overlay.setAttribute('hidden',''); }); }
+  if (forceShareBtn){ forceShareBtn.addEventListener('click', async ()=>{
+    const { file, blob } = await getJPG();
+    if (navigator.canShare && navigator.canShare({ files:[file] })){
+      try{ await navigator.share({ files:[file], title:'PHU FISH — ใบเสร็จ' }); return; }catch(e){}
+    }
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.target = '_blank'; a.click();
+    setTimeout(()=> URL.revokeObjectURL(url), 5000);
+  }); }
+
+  // เริ่มต้น
+  updateDisplay(); updateEquation();
+
+  // ====== PWA: สร้าง manifest และลงทะเบียน Service Worker (วิธี 1) ======
+  (function registerPWA(){
+    try{
+      // 1) สร้าง manifest แบบไดนามิก
+      const manifest = {
+        name: 'PHU FISH — Receipt',
+        short_name: 'PHU FISH',
+        start_url: '.',
+        scope: '.',
+        display: 'standalone',
+        background_color: '#0b0b0c',
+        theme_color: '#0b0b0c',
+        icons: [] // ถ้าต้องการไอคอนเฉพาะ เดี๋ยวผมใส่ PNG ให้ภายหลัง
+      };
+      const mBlob = new Blob([JSON.stringify(manifest)], {type: 'application/manifest+json'});
+      const mUrl = URL.createObjectURL(mBlob);
+      const mLink = document.getElementById('dynamic-manifest');
+      if(mLink) mLink.setAttribute('href', mUrl);
+
+      // 2) ลงทะเบียน Service Worker แบบ Blob เพื่อให้ไฟล์เดียวก็ทำ PWA/Offline ได้
+      if ('serviceWorker' in navigator) {
+        const CACHE = 'phu-fish-cache-v1';
+        const swCode = `
+          const CACHE = '${'phu-fish-cache-v1'}';
+          const PRECACHE = [
+            self.location.origin + self.location.pathname,
+            'https://cdn.jsdelivr.net/gh/diewland/promptpay-qr-js/qrcode.min.js',
+            'https://cdn.jsdelivr.net/gh/diewland/promptpay-qr-js/promptpay-qr.js'
+          ];
+          self.addEventListener('install', (e)=>{
+            e.waitUntil(
+              caches.open(CACHE).then(c=>c.addAll(PRECACHE)).then(()=>self.skipWaiting())
+            );
+          });
+          self.addEventListener('activate', (e)=>{
+            e.waitUntil(
+              caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE).map(k=>caches.delete(k))))
+              .then(()=>self.clients.claim())
+            );
+          });
+          self.addEventListener('fetch', (e)=>{
+            const req = e.request;
+            // cache-first for same-origin & jsdelivr
+            if (req.method === 'GET'){
+              e.respondWith(
+                caches.match(req).then(cached=>{
+                  const fetchPromise = fetch(req).then(res=>{
+                    const clone = res.clone();
+                    caches.open(CACHE).then(c=>c.put(req, clone)).catch(()=>{});
+                    return res;
+                  }).catch(()=> cached);
+                  return cached || fetchPromise;
+                })
+              );
+            }
+          });
+        `;
+        const swBlob = new Blob([swCode], {type:'text/javascript'});
+        const swUrl = URL.createObjectURL(swBlob);
+        navigator.serviceWorker.register(swUrl, {scope: './'}).catch(()=>{});
+      }
+    }catch(e){ console.warn('PWA register failed', e); }
+  })();
+
+})();
+</script>
+</body>
+</html>
